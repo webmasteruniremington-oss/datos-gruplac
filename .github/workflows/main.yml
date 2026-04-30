@@ -1,9 +1,9 @@
 name: GrupLAC Scraper
 
 on:
-  workflow_dispatch: # Permite ejecutarlo manualmente
+  workflow_dispatch: # Ejecución manual
   schedule:
-    - cron: '0 0 * * 1' # Se ejecuta cada lunes a las 12 AM
+    - cron: '0 0 * * 1' # Cada lunes a las 12 AM
 
 jobs:
   build:
@@ -16,10 +16,10 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # Mantenemos 20 por estabilidad, pero aseguramos v4
+          node-version: '20'
 
       - name: Install dependencies
-        run: npm install # Esto es lo que faltaba: instalar axios, cheerio e iconv-lite
+        run: npm install # ESTO ES VITAL para que funcione iconv-lite y axios
 
       - name: Run scraper
         run: node scraper.js
