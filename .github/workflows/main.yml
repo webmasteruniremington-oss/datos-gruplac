@@ -1,25 +1,33 @@
-name: Actualizar Datos
+name: GrupLAC Scraper
+
 on:
+  workflow_dispatch: # Permite ejecutarlo manualmente
   schedule:
-    - cron: '0 0 * * 1'
-  workflow_dispatch:
+    - cron: '0 0 * * 1' # Se ejecuta cada lunes a las 12 AM
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - run: npm install
-      - run: node scraper.js
-      - name: Guardar cambios
+          node-version: '20' # Mantenemos 20 por estabilidad, pero aseguramos v4
+
+      - name: Install dependencies
+        run: npm install # Esto es lo que faltaba: instalar axios, cheerio e iconv-lite
+
+      - name: Run scraper
+        run: node scraper.js
+
+      - name: Commit and push changes
         run: |
-          git config --global user.name 'Robot'
-          git config --global user.email 'robot@github.com'
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add investigadores.json
-          git commit -m "Actualización" || exit 0
+          git commit -m "Actualización automática de investigadores" || exit 0
           git push
