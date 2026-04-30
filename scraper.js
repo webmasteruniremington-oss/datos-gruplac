@@ -3,14 +3,33 @@ const cheerio = require('cheerio');
 const fs = require('fs');
 const iconv = require('iconv-lite');
 
-async function scrape() {
-    const url = 'https://scienti.minciencias.gov.co/gruplac/jsp/visualiza/visualizagr.jsp?nro=00000000016595';
-    
+// 1. CONFIGURACIÓN DE GRUPOS
+// Aquí agregas los grupos. El "id" debe coincidir con el nombre del archivo .json
+const GRUPOS = [
+    {
+        id: 'investigadores', // Este es GISOR
+        url: 'https://scienti.minciencias.gov.co/gruplac/jsp/visualiza/visualizagr.jsp?nro=00000000016595'
+    },
+    {
+        id: 'biomedicas',
+        url: 'https://scienti.minciencias.gov.co/gruplac/jsp/visualiza/visualizagr.jsp?nro=00000000004123'
+    },
+    {
+        id: 'gisam',
+        url: 'https://scienti.minciencias.gov.co/gruplac/jsp/visualiza/visualizagr.jsp?nro=00000000005562'
+    },
+    {
+        id: 'salud_familiar_y_comunitaria',
+        url: 'https://scienti.minciencias.gov.co/gruplac/jsp/visualiza/visualizagr.jsp?nro=00000000018689'
+    }
+];
+
+async function scrapeGrupo(grupo) {
     try {
-        console.log('Iniciando extracción de datos de GISOR...');
+        console.log(`Iniciando extracción de: ${grupo.id}...`);
         
         // Descargamos el HTML con arraybuffer para manejar la codificación ISO-8859-1
-        const response = await axios.get(url, { responseType: 'arraybuffer' });
+        const response = await axios.get(grupo.url, { responseType: 'arraybuffer' });
         const html = iconv.decode(response.data, 'iso-8859-1');
         const $ = cheerio.load(html);
         
@@ -26,11 +45,11 @@ async function scrape() {
             if (celdas.length >= 3) {
                 const celdaNombre = celdas.eq(0);
                 
-                // 1. Extraer y limpiar el nombre (quita "1.- ", "2.- ", etc.)
+                // 1. Extraer y limpiar el nombre
                 let nombreRaw = celdaNombre.text().trim();
                 let nombreLimpio = nombreRaw
-                    .replace(/^\d+[\.\-]\s*/, '') // Quita números y puntos al inicio
-                    .replace(/\s+/g, ' ')         // Quita espacios dobles
+                    .replace(/^\d+[\.\-]\s*/, '') 
+                    .replace(/\s+/g, ' ')         
                     .trim();
 
                 // 2. Extraer el enlace al CvLAC
@@ -39,10 +58,9 @@ async function scrape() {
                     ? (linkRelativo.startsWith('http') ? linkRelativo : 'https://scienti.minciencias.gov.co' + linkRelativo)
                     : '#';
 
-                // 3. Extraer vinculación (Columna 2: "Integrante", "Colaborador", etc.)
+                // 3. Extraer vinculación
                 let vinculacion = celdas.eq(1).text().trim();
 
-                // Solo agregamos si hay un nombre válido
                 if (nombreLimpio && nombreLimpio !== "Nombre") {
                     investigadores.push({
                         nombre: nombreLimpio,
@@ -53,16 +71,22 @@ async function scrape() {
             }
         });
 
-        // Guardar el archivo JSON
-        fs.writeFileSync('investigadores.json', JSON.stringify(investigadores, null, 2));
-        
-        console.log(`✅ Proceso finalizado con éxito.`);
-        console.log(`📊 Total investigadores encontrados: ${investigadores.length}`);
+        // Guardar el archivo JSON específico para este grupo
+        fs.writeFileSync(`${grupo.id}.json`, JSON.stringify(investigadores, null, 2));
+        console.log(`✅ ${grupo.id}.json generado con ${investigadores.length} integrantes.`);
         
     } catch (error) {
-        console.error('❌ Error durante el scraping:', error.message);
-        process.exit(1);
+        console.error(`❌ Error en grupo ${grupo.id}:`, error.message);
     }
 }
 
-scrape();
+// Función principal para ejecutar todos los grupos secuencialmente
+async function iniciarScraping() {
+    console.log('🚀 Iniciando proceso de actualización múltiple...');
+    for (const grupo of GRUPOS) {
+        await scrapeGrupo(grupo);
+    }
+    console.log('🏁 Todos los grupos han sido procesados.');
+}
+
+iniciarScraping();
