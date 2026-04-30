@@ -1,16 +1,13 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 const fs = require('fs');
-const iconv = require('iconv-lite'); // Nueva librería para limpiar tildes
+const iconv = require('iconv-lite');
 
 async function scrape() {
     const url = 'https://scienti.minciencias.gov.co/gruplac/jsp/visualiza/visualizagr.jsp?nro=00000000016595';
     
     try {
-        // Descargamos los datos como un chorro de bytes (arraybuffer) para no perder las tildes
         const response = await axios.get(url, { responseType: 'arraybuffer' });
-        
-        // Convertimos el formato antiguo de MinCiencias a formato moderno legible
         const html = iconv.decode(response.data, 'iso-8859-1');
         const $ = cheerio.load(html);
         let investigadores = [];
@@ -19,24 +16,26 @@ async function scrape() {
             if (i === 0) return;
             const celdas = $(el).find('td');
             
-            // Limpiamos espacios extra y saltos de línea
-            let nombre = celdas.eq(0).text().replace(/\s+/g, ' ').trim();
+            // LIMPIEZA: Quitamos números iniciales (1.-), diamantes raros y espacios extra
+            let nombreRaw = celdas.eq(0).text();
+            let nombre = nombreRaw
+                .replace(/^\d+[\.\-]\s*/, '') // Quita el "1.- "
+                .replace(/[^\x00-\x7F]/g, '') // Quita caracteres no ASCII (los diamantes)
+                .replace(/\s+/g, ' ')         // Espacios dobles a simples
+                .trim();
+
             let vinculacion = celdas.eq(2).text().replace(/\s+/g, ' ').trim();
 
             if (nombre && nombre !== "Nombre") {
-                investigadores.push({ 
-                    nombre: nombre, 
-                    vinculacion: vinculacion 
-                });
+                investigadores.push({ nombre, vinculacion });
             }
         });
 
         fs.writeFileSync('investigadores.json', JSON.stringify(investigadores, null, 2));
-        console.log('✅ Datos limpios y guardados');
+        console.log('✅ Archivo JSON limpio generado');
     } catch (error) {
         console.error('❌ Error:', error.message);
         process.exit(1);
     }
 }
-
 scrape();
