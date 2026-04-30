@@ -5,9 +5,6 @@ on:
   schedule:
     - cron: '0 0 * * 1'
 
-permissions:
-  contents: write
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -28,11 +25,16 @@ jobs:
       - name: Run scraper
         run: node scraper.js
 
-      - name: Guardar cambios
+      - name: Guardar cambios a la fuerza
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Añadimos el archivo generado
           git add investigadores.json
-          git pull --rebase origin main
-          git commit -m "Reinicio limpio de datos" || exit 0
-          git push origin main
+          
+          # Hacemos el commit
+          git commit -m "Datos actualizados: Limpieza de caracteres" || exit 0
+          
+          # FORZAMOS la subida para ignorar errores de 'fetch first' o 'rebase'
+          git push origin main --force
