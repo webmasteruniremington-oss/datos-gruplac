@@ -1,0 +1,25 @@
+name: Actualizar Datos
+on:
+  schedule:
+    - cron: '0 0 * * 1' # Ejecuta todos los lunes a las 12 AM
+  workflow_dispatch:   # Esto permite que tú le des al botón de "ejecutar" manualmente
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - run: npm install
+      - run: node scraper.js
+      - name: Guardar cambios
+        run: |
+          git config --global user.name 'Robot Investigador'
+          git config --global user.email 'action@github.com'
+          git add investigadores.json
+          git commit -m "Actualización automática de integrantes" || exit 0
+          git push
