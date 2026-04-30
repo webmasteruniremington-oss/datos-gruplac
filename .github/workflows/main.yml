@@ -1,14 +1,16 @@
 name: GrupLAC Scraper
 
 on:
-  workflow_dispatch: # Ejecución manual
+  workflow_dispatch:
   schedule:
-    - cron: '0 0 * * 1' # Cada lunes a las 12 AM
+    - cron: '0 0 * * 1'
+
+permissions:
+  contents: write # Esto asegura que el bot pueda escribir el JSON
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -16,10 +18,10 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 20
 
       - name: Install dependencies
-        run: npm install # ESTO ES VITAL para que funcione iconv-lite y axios
+        run: npm install axios cheerio iconv-lite
 
       - name: Run scraper
         run: node scraper.js
@@ -29,5 +31,5 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add investigadores.json
-          git commit -m "Actualización automática de investigadores" || exit 0
+          git commit -m "Actualización automática de datos" || exit 0
           git push
