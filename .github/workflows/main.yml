@@ -1,12 +1,12 @@
 name: GrupLAC Scraper
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Permite ejecución manual desde la pestaña Actions
   schedule:
-    - cron: '0 0 * * 1'
+    - cron: '0 0 * * 1' # Se ejecuta automáticamente cada lunes a las 12 AM
 
 permissions:
-  contents: write # Esto asegura que el bot pueda escribir el JSON
+  contents: write # Permiso necesario para que el bot guarde el archivo JSON
 
 jobs:
   build:
@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Descarga todo el historial para evitar errores de sincronización
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -26,10 +28,19 @@ jobs:
       - name: Run scraper
         run: node scraper.js
 
-      - name: Commit and push changes
+      - name: Guardar cambios
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Añadir el archivo generado
           git add investigadores.json
-          git commit -m "Actualización automática de datos" || exit 0
-          git push
+          
+          # Sincronizar con cambios remotos para evitar el error [rejected]
+          git pull --rebase origin main
+          
+          # Hacer el commit solo si hay cambios, si no, salir dignamente
+          git commit -m "Actualización automática de datos limpios" || exit 0
+          
+          # Empujar los cambios a la rama principal
+          git push origin main
