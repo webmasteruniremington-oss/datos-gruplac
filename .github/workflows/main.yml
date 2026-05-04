@@ -8,6 +8,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Añadimos permisos explícitos de escritura para que la Action pueda subir archivos
+    permissions:
+      contents: write
+      
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,16 +29,16 @@ jobs:
       - name: Run scraper
         run: node scraper.js
 
-      - name: Guardar cambios a la fuerza
+      - name: Guardar cambios automáticamente
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Añadimos el archivo generado
-          git add investigadores.json
+          # 'git add .' añade TODOS los archivos nuevos y modificados
+          git add .
           
-          # Hacemos el commit
-          git commit -m "Datos actualizados: Limpieza de caracteres" || exit 0
+          # Hacemos el commit. Si no hay cambios, el 'exit 0' evita que la Action marque error.
+          git commit -m "Actualización automática de grupos de investigación" || exit 0
           
-          # FORZAMOS la subida para ignorar errores de 'fetch first' o 'rebase'
-          git push origin main --force
+          # Subimos los cambios al repositorio
+          git push origin main
