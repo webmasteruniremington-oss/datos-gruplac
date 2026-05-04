@@ -3,11 +3,11 @@ const cheerio = require('cheerio');
 const fs = require('fs');
 const iconv = require('iconv-lite');
 
-// 1. CONFIGURACIÓN DE GRUPOS
-// Aquí agregas los grupos. El "id" debe coincidir con el nombre del archivo .json
+// 1. CONFIGURACIÓN DE GRUPOS 
+// Garantizado para procesar cada uno y generar su archivo .json independiente
 const GRUPOS = [
     {
-        id: 'investigadores', // Este es GISOR
+        id: 'investigadores', 
         url: 'https://scienti.minciencias.gov.co/gruplac/jsp/visualiza/visualizagr.jsp?nro=00000000016595'
     },
     {
@@ -26,16 +26,23 @@ const GRUPOS = [
 
 async function scrapeGrupo(grupo) {
     try {
-        console.log(`Iniciando extracción de: ${grupo.id}...`);
+        console.log(`\n🔍 Procesando: ${grupo.id}...`);
         
-        // Descargamos el HTML con arraybuffer para manejar la codificación ISO-8859-1
-        const response = await axios.get(grupo.url, { responseType: 'arraybuffer' });
+        // Descargamos el HTML con arraybuffer y headers para evitar bloqueos
+        const response = await axios.get(grupo.url, { 
+            responseType: 'arraybuffer',
+            headers: { 
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            },
+            timeout: 30000 // 30 segundos de espera
+        });
+
         const html = iconv.decode(response.data, 'iso-8859-1');
         const $ = cheerio.load(html);
-        
         let investigadores = [];
 
         // Buscamos la tabla que contiene el texto "Integrantes del grupo"
+        // Usamos una búsqueda flexible para encontrar la tabla correcta
         $("td:contains('Integrantes del grupo')").closest('table').find('tr').each((i, el) => {
             // Saltamos el encabezado de la tabla
             if (i === 0) return;
@@ -48,8 +55,8 @@ async function scrapeGrupo(grupo) {
                 // 1. Extraer y limpiar el nombre
                 let nombreRaw = celdaNombre.text().trim();
                 let nombreLimpio = nombreRaw
-                    .replace(/^\d+[\.\-]\s*/, '') 
-                    .replace(/\s+/g, ' ')         
+                    .replace(/^\d+[\.\-]\s*/, '') // Quita "1.- ", "2.- ", etc.
+                    .replace(/\s+/g, ' ')         // Quita espacios dobles
                     .trim();
 
                 // 2. Extraer el enlace al CvLAC
@@ -61,7 +68,8 @@ async function scrapeGrupo(grupo) {
                 // 3. Extraer vinculación
                 let vinculacion = celdas.eq(1).text().trim();
 
-                if (nombreLimpio && nombreLimpio !== "Nombre") {
+                // Validamos que sea un nombre de integrante real
+                if (nombreLimpio && nombreLimpio !== "Nombre" && nombreLimpio.length > 2) {
                     investigadores.push({
                         nombre: nombreLimpio,
                         vinculacion: vinculacion,
@@ -71,22 +79,26 @@ async function scrapeGrupo(grupo) {
             }
         });
 
-        // Guardar el archivo JSON específico para este grupo
-        fs.writeFileSync(`${grupo.id}.json`, JSON.stringify(investigadores, null, 2));
-        console.log(`✅ ${grupo.id}.json generado con ${investigadores.length} integrantes.`);
+        // Verificamos si se obtuvieron datos antes de escribir el archivo
+        if (investigadores.length > 0) {
+            fs.writeFileSync(`${grupo.id}.json`, JSON.stringify(investigadores, null, 2));
+            console.log(`✅ ${grupo.id}.json actualizado exitosamente. Integrantes: ${investigadores.length}`);
+        } else {
+            console.warn(`⚠️ No se detectaron integrantes en la tabla para: ${grupo.id}`);
+        }
         
     } catch (error) {
-        console.error(`❌ Error en grupo ${grupo.id}:`, error.message);
+        console.error(`❌ Error extrayendo ${grupo.id}: ${error.message}`);
     }
 }
 
-// Función principal para ejecutar todos los grupos secuencialmente
-async function iniciarScraping() {
-    console.log('🚀 Iniciando proceso de actualización múltiple...');
+// Función ejecutora: procesa uno por uno para no saturar el servidor
+async function ejecutarTodo() {
+    console.log('🚀 INICIANDO ACTUALIZACIÓN GLOBAL DE GRUPOS...');
     for (const grupo of GRUPOS) {
         await scrapeGrupo(grupo);
     }
-    console.log('🏁 Todos los grupos han sido procesados.');
+    console.log('\n✨ Proceso terminado para todos los grupos.');
 }
 
-iniciarScraping();
+ejecutarTodo();
