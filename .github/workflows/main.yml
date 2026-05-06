@@ -3,14 +3,12 @@ name: GrupLAC Scraper
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 0 * * 1' # Se ejecuta todos los lunes a medianoche
+    - cron: '0 0 * * 1' # Todos los lunes a las 00:00
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Aumentamos el tiempo máximo de espera del job a 15 minutos 
-    # para dar margen a los reintentos del scraper
-    timeout-minutes: 15 
+    timeout-minutes: 20 # Evita que se corte por las pausas de seguridad
     
     permissions:
       contents: write
@@ -30,27 +28,21 @@ jobs:
         run: npm install axios cheerio iconv-lite
 
       - name: Run scraper
-        # Añadimos una variable de entorno para que Axios maneje mejor las peticiones en CI
         run: node scraper.js
-        env:
-          NODE_ENV: production
 
       - name: Guardar cambios automáticamente
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Añadimos solo los archivos JSON generados para evitar basura en el commit
           git add *.json
           
-          # Verificamos si hay cambios reales antes de hacer el commit
+          # Solo hace commit si hay cambios reales en los archivos JSON
           if git diff --cached --quiet; then
-            echo "No hay cambios en los integrantes actuales. Saltando commit."
+            echo "Sin cambios detectados. Finalizando."
             exit 0
           fi
           
-          git commit -m "Actualización automática de grupos de investigación: $(date +'%Y-%m-%d')"
-          
-          # Usamos un pull antes del push por si acaso hubo un cambio manual en el repo
+          git commit -m "Actualización automática integrantes actuales: $(date +'%Y-%m-%d')"
           git pull --rebase origin main
           git push origin main
